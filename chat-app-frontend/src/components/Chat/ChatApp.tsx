@@ -13,6 +13,7 @@ import {
 
 import "tailwindcss/tailwind.css";
 import { PaperAirplaneIcon } from "@heroicons/react/20/solid";
+import "./scrollbar.css";
 
 const Chat = () => {
   const [showModal, setShowModal] = useState(true);
@@ -20,10 +21,12 @@ const Chat = () => {
   const [name, setName] = useState("");
   const [selectedChatUser, setSelectedChatUser] = useState("");
   const [users, setUsers] = useState([]);
+  const [searchInput, setSearchInput] = useState("");
   const [receiver, setReceiver] = useState(null);
   const [messages, setMessages] = useState({});
   const [messageInput, setMessageInput] = useState("");
   const [currentUserId, setCurrentUserId] = useState(null);
+  const chatWindowRef = useRef(null);
 
   const socket = useRef(null);
 
@@ -38,18 +41,22 @@ const Chat = () => {
       });
 
       socket.current.on("message", (newMessage) => {
-        setMessages((prevMessages) => ({
-          ...prevMessages,
-          [newMessage.sender.name]: [
-            ...(prevMessages[newMessage.sender.name] || []),
-            {
-              sender: newMessage.sender.name,
-              message: newMessage.content,
-              type:
-                newMessage.sender.id === currentUserId ? "sent" : "received",
-            },
-          ],
-        }));
+        setMessages((prevMessages) => {
+          const updatedMessages = {
+            ...prevMessages,
+            [newMessage.sender.name]: [
+              ...(prevMessages[newMessage.sender.name] || []),
+              {
+                sender: newMessage.sender.name,
+                message: newMessage.content,
+                type:
+                  newMessage.sender.id === currentUserId ? "sent" : "received",
+              },
+            ],
+          };
+          scrollToBottom();
+          return updatedMessages;
+        });
       });
 
       return () => {
@@ -88,10 +95,14 @@ const Chat = () => {
               message: msg.content,
               type: msg.senderId === currentUserId ? "sent" : "received",
             }));
-          setMessages((prevMessages) => ({
-            ...prevMessages,
-            [receiver.name]: userMessages,
-          }));
+          setMessages((prevMessages) => {
+            const updatedMessages = {
+              ...prevMessages,
+              [receiver.name]: userMessages,
+            };
+            scrollToBottom();
+            return updatedMessages;
+          });
         } catch (error) {
           console.error("Error fetching messages:", error);
         }
@@ -99,6 +110,12 @@ const Chat = () => {
     };
     fetchMessages();
   }, [receiver, currentUserId]);
+
+  const scrollToBottom = () => {
+    if (chatWindowRef.current) {
+      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+    }
+  };
 
   const sendMessage = async () => {
     const message = messageInput;
@@ -111,17 +128,21 @@ const Chat = () => {
           content: message,
         });
 
-        setMessages((prevMessages) => ({
-          ...prevMessages,
-          [receiver.name]: [
-            ...prevMessages[receiver.name],
-            {
-              sender: "You",
-              message: message,
-              type: "sent",
-            },
-          ],
-        }));
+        setMessages((prevMessages) => {
+          const updatedMessages = {
+            ...prevMessages,
+            [receiver.name]: [
+              ...prevMessages[receiver.name],
+              {
+                sender: "You",
+                message: message,
+                type: "sent",
+              },
+            ],
+          };
+          scrollToBottom();
+          return updatedMessages;
+        });
         setMessageInput("");
       } catch (error) {
         console.error("Error sending message:", error);
@@ -167,8 +188,16 @@ const Chat = () => {
     setShowChatModal(false);
   };
 
+  const handleSearchInputChange = (e) => {
+    setSearchInput(e.target.value);
+  };
+
+  const filteredUsers = users.filter((user) =>
+    user.name.toLowerCase().includes(searchInput.toLowerCase())
+  );
+
   return (
-    <div className="bg-gray-900 text-white flex flex-col justify-between items-stretch h-[46rem] flex-shrink-0">
+    <div className="bg-gray-900 text-white flex flex-col justify-between items-stretch h-screen w-screen flex-shrink-0 ">
       {showModal && (
         <div className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-center">
           <div className="bg-gray-800 p-4 rounded shadow-lg">
@@ -191,6 +220,8 @@ const Chat = () => {
           type="text"
           placeholder="Search user"
           className="w-1/4 bg-gray-800"
+          value={searchInput}
+          onChange={handleSearchInputChange}
         />
         <div>Chat App</div>
         <Button
@@ -203,7 +234,7 @@ const Chat = () => {
       <div className="flex flex-grow overflow-hidden">
         <div className="w-1/4 bg-gray-900 p-4 overflow-y-auto">
           <h2 className="text-lg font-semibold mb-4">Users</h2>
-          {users.map((user) => (
+          {filteredUsers.map((user) => (
             <div
               key={user.id}
               className={`p-2 cursor-pointer rounded mb-2 hover:bg-gray-700 ${
@@ -226,7 +257,10 @@ const Chat = () => {
           ))}
         </div>
         <div className="w-3/4 flex flex-col">
-          <div className="flex-grow p-4 overflow-y-auto bg-gray-800">
+          <div
+            ref={chatWindowRef}
+            className="flex-grow p-4 overflow-y-auto bg-gray-800 flex flex-col-reverse scrollbar-thin"
+          >
             {receiver ? (
               <div>
                 {messages[receiver.name]?.map((msg, index) => (

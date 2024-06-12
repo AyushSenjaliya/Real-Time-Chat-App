@@ -5,11 +5,13 @@ import ChatApp from "./components/Chat/ChatApp";
 function App() {
   return (
     <>
-      <Router>
-        <Routes>
-          <Route path="/" element={<ChatApp />} />
-        </Routes>
-      </Router>
+      <div className="h-screen w-screen">
+        <Router>
+          <Routes>
+            <Route path="/" element={<ChatApp />} />
+          </Routes>
+        </Router>
+      </div>
     </>
   );
 }
