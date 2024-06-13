@@ -10,6 +10,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 import "tailwindcss/tailwind.css";
 import { PaperAirplaneIcon } from "@heroicons/react/20/solid";
@@ -57,6 +59,12 @@ const Chat = () => {
           scrollToBottom();
           return updatedMessages;
         });
+
+        if (newMessage.sender.id !== currentUserId) {
+          toast.info(
+            `New message from ${newMessage.sender.name}: ${newMessage.content}`
+          );
+        }
       });
 
       return () => {
@@ -143,6 +151,14 @@ const Chat = () => {
           scrollToBottom();
           return updatedMessages;
         });
+
+        // Emit notification event to the receiver
+        socket.current.emit("notify", {
+          senderName: "You",
+          receiverId: receiver.id,
+          content: message,
+        });
+
         setMessageInput("");
       } catch (error) {
         console.error("Error sending message:", error);
@@ -157,6 +173,7 @@ const Chat = () => {
 
       if (existingUser) {
         setCurrentUserId(existingUser.id);
+        toast.success(`Welcome back, ${existingUser.name}!`);
       } else {
         const newUserResponse = await axios.post(
           "http://localhost:3000/users/register",
@@ -165,6 +182,7 @@ const Chat = () => {
         const newUser = newUserResponse.data;
         setCurrentUserId(newUser.id);
         setUsers((prevUsers) => [...prevUsers, newUser]);
+        toast.success(`New user added: ${newUser.name}`);
       }
 
       setShowModal(false);
@@ -198,6 +216,7 @@ const Chat = () => {
 
   return (
     <div className="bg-gray-900 text-white flex flex-col justify-between items-stretch h-screen w-screen flex-shrink-0 ">
+      <ToastContainer />
       {showModal && (
         <div className="fixed inset-0 bg-gray-700 bg-opacity-50 flex justify-center items-center">
           <div className="bg-gray-800 p-4 rounded shadow-lg">
@@ -273,8 +292,8 @@ const Chat = () => {
                     <div
                       className={`inline-block p-2 rounded ${
                         msg.type === "sent"
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-600 text-white"
+                          ? "bg-sky-700 text-white"
+                          : "bg-sky-900 text-white"
                       }`}
                     >
                       {msg.message}
